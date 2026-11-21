@@ -255,6 +255,27 @@
                 android:resource="@xml/lyrics_wallpaper" />
         </service>
 
+        <!-- 桌面歌词小部件。BIND_APPWIDGET 是系统认领小部件的硬性要求；
+             APPWIDGET_UPDATE 这个 intent-filter 必须有，否则它不会出现在小部件选择器里。 -->
+        <receiver
+            android:name=".widget.LyricsWidgetProvider"
+            android:exported="true"
+            android:label="@string/lyrics_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lyrics_widget_info" />
+        </receiver>
+
+        <!-- 小部件的刷新节拍。只在桌面上至少有一块小部件时运行（onEnabled 拉起、
+             onDisabled 收掉），不常驻。它不是前台服务：轮询只读一份内存快照、
+             不改播放状态，没必要占一条常驻通知。 -->
+        <service
+            android:name=".widget.LyricsWidgetService"
+            android:exported="false" />
+
         <!-- 崩溃取证界面：开发机上没有 adb 设备，只能让 App 自己把栈显示出来 -->
         <activity
             android:name=".CrashActivity"

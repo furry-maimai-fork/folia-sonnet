@@ -6,6 +6,11 @@
     <string name="custom_url_scheme">top.izuna.foliamajor</string>
     <string name="lyrics_wallpaper_description">把正在播放的歌词做成动态壁纸</string>
 
+    <!-- 桌面歌词小部件（widget/LyricsWidget*）。label 是小部件选择器里的名字，
+         description 是它下面那行说明；两者都由系统拿去显示，要能单独读懂。 -->
+    <string name="lyrics_widget_label">歌词</string>
+    <string name="lyrics_widget_description">在桌面上显示正在播放的歌词与进度，随歌曲滚动</string>
+
     <!-- 启动时的 WebView 体检（见 WebViewUpgrade）。 -->
     <string name="webview_upgrade_title">系统 WebView 版本过低</string>
     <string name="webview_upgrade_message">Folia 需要 Chromium %1$d 以上的系统 WebView，当前是 %2$s。\n\n请更新「Android System WebView」后重新打开应用，否则界面可能白屏或无法播放。</string>

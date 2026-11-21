@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    小部件里只有一张图。所有内容（歌词、进度、光晕）都由 LyricsWidgetRenderer 画进这张
+    Bitmap —— RemoteViews 放不进自定义 View，也跑不了动画，能用的只有静态图与文字。
+    这张图自己带透明背景，所以桌面壁纸能透出来。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lyrics_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/lyrics_widget_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/lyrics_widget_description"
+        android:scaleType="fitXY" />
+
+</LinearLayout>

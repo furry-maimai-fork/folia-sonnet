@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    桌面歌词小部件的声明。系统读它决定「选择器里怎么显示、最小多大、能不能缩放」。
+
+    minWidth / minHeight 按 70dp 一格折算（Android 的格子基准是 4x4 网格下 70dp，
+    实际桌面会再按自己的格宽调整）：1x1 = 40dp（留一点余量给圆角裁切），
+    2x1 = 110dp、2x2 = 110dp —— 这两种是小部件选择器里最常放的位置。
+
+    resizeMode="horizontal|vertical"：两个方向都要能拉，因为 COMPACT / MEDIUM / WIDE
+    三种画法就是按实际宽高比选出来的，锁死方向等于锁死其中两种画法。
+
+    updatePeriodMillis 给 0：刷新完全交给 LyricsWidgetService 的轮询。系统那套最细
+    30 分钟一次，对歌词没有意义，留着只会白白唤醒一次进程。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/lyrics_widget"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:description="@string/lyrics_widget_description"
+    android:previewLayout="@layout/lyrics_widget" />
