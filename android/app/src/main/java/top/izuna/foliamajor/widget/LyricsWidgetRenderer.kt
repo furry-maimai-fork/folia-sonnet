@@ -49,11 +49,16 @@ object LyricsWidgetRenderer {
      *
      * 判据用「短边能放几行」而不是长宽比：1x2 与 2x1 在桌面旋转后是同一块地方，
      * 用长宽比会把它们分到不同档位，用户转个屏小部件就换了长相。
+     *
+     * `density` 必须给：44 是 **dp**，直接拿 px 去除会让 3x 屏上的格子凭空多算 3 倍行数 ——
+     * 2x1（约 110dp 高 = 330px）会被判成能放 7 行，于是画成 WIDE 的空白大格子。
      */
-    fun sizeFor(widthPx: Int, heightPx: Int): LyricsWidgetSize {
+    fun sizeFor(widthPx: Int, heightPx: Int, density: Float): LyricsWidgetSize {
         if (widthPx <= 0 || heightPx <= 0) return LyricsWidgetSize.COMPACT
-        // 一行字大约要 44dp；按 160dpi 基准折算成 px 的下限。
-        val lineBudget = heightPx / 44
+        val safeDensity = if (density > 0f) density else 1f
+        val heightDp = heightPx / safeDensity
+        // 一行字连同行距大约要 44dp。
+        val lineBudget = (heightDp / 44f).toInt()
         return when {
             lineBudget <= 1 -> LyricsWidgetSize.COMPACT
             lineBudget <= 3 -> LyricsWidgetSize.MEDIUM
@@ -79,7 +84,7 @@ object LyricsWidgetRenderer {
         val safeHeight = heightPx.coerceAtLeast(1)
         val bitmap = Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val size = sizeFor(safeWidth, safeHeight)
+        val size = sizeFor(safeWidth, safeHeight, density)
         val accent = snapshot?.accent?.takeIf { Color.alpha(it) > 0 && it != Color.TRANSPARENT } ?: accentFallback
         // 小部件自己不带背景图：桌面壁纸已经在那儿了，再铺一层会把它盖住。
         // 只给一层很淡的圆形光晕，保证白字压在浅色壁纸上也读得清。
@@ -91,7 +96,7 @@ object LyricsWidgetRenderer {
         when (size) {
             LyricsWidgetSize.COMPACT -> drawCompact(canvas, snapshot, safeWidth, safeHeight, density, accent)
             LyricsWidgetSize.MEDIUM -> drawMedium(canvas, snapshot, safeWidth, safeHeight, density, accent)
-            LyricsWidgetSize.WIDE -> drawMedium(canvas, snapshot, safeWidth, safeHeight, density, accent)
+            LyricsWidgetSize.WIDE -> drawWide(canvas, snapshot, safeWidth, safeHeight, density, accent)
         }
         return bitmap
     }
@@ -173,6 +178,67 @@ object LyricsWidgetRenderer {
         if (next.isNotEmpty()) {
             val paint = textPaint(fontSize * 0.82f, Color.WHITE).apply { alpha = 0x55 }
             drawCentered(canvas, ellipsize(paint, next, maxWidth), width / 2f, centerY + rowGap, paint)
+        }
+        drawProgressBar(canvas, width, height, progress, accent, density)
+    }
+
+    /**
+     * 4 行以上的格子（2x2、3x2、4x2 这些）。
+     *
+     * 与 MEDIUM 的区别是**前后各多给一行**：MEDIUM 只能放「上一行 + 当前 + 下一行」，
+     * 大格子上前后各留两行才填得满；否则中间那块字挤在正中、上下大片空白，看着像没画完。
+     * 越远的行越淡越小，形成往中心收的层次。
+     *
+     * 翻译行照旧挤在当前行下方 —— 它属于「这一句」，不该被算进上下文行里。
+     */
+    private fun drawWide(
+        canvas: Canvas,
+        snapshot: WallpaperLyricsState.Snapshot,
+        width: Int,
+        height: Int,
+        density: Float,
+        accent: Int,
+    ) {
+        val lines = snapshot.lines ?: return
+        val positionMs = snapshot.positionMs()
+        val index = snapshot.indexAt(positionMs)
+        val progress = snapshot.progressAt(positionMs)
+        val padding = dp(14f, density)
+        val fontSize = min((width - padding * 2) / 11f, height * 0.115f)
+        val rowGap = fontSize * 1.5f
+        val centerY = height * 0.50f
+        val maxWidth = width - padding * 2
+        val currentLine = lines.getOrNull(index)
+        val current = currentLine?.text?.trim().orEmpty()
+        val translation = currentLine?.translation?.trim().orEmpty()
+        val hasTranslation = snapshot.showTranslation && translation.isNotEmpty()
+
+        // 上下各两行的上下文。越远越淡：0.34 / 0.18 两档，比 MEDIUM 的单档更有纵深。
+        for (distance in 2 downTo 1) {
+            val alpha = if (distance == 1) 0x50 else 0x2C
+            val scale = if (distance == 1) 0.80f else 0.72f
+            for (direction in intArrayOf(-1, 1)) {
+                // 有翻译行时上下文往外让半行，避免和译文撞在一起。
+                val offset = (rowGap * distance + if (hasTranslation) fontSize * 0.5f else 0f) * direction
+                val text = lines.getOrNull(index + distance * direction)?.text?.trim().orEmpty()
+                if (text.isEmpty()) continue
+                val paint = textPaint(fontSize * scale, Color.WHITE).apply { this.alpha = alpha }
+                drawCentered(canvas, ellipsize(paint, text, maxWidth), width / 2f, centerY + offset, paint)
+            }
+        }
+
+        val breath = 1f + LINE_BREATH * kotlin.math.sin(
+            (positionMs % 2400L).toDouble() / 2400.0 * 2 * Math.PI,
+        ).toFloat()
+        val currentBaseline = if (hasTranslation) centerY - fontSize * 0.34f else centerY
+        val currentPaint = textPaint(fontSize * breath, Color.WHITE)
+        drawSweptLine(
+            canvas, ellipsize(currentPaint, current, maxWidth), width / 2f, currentBaseline,
+            currentPaint, accent, progress, center = true,
+        )
+        if (hasTranslation) {
+            val paint = textPaint(fontSize * 0.62f, Color.WHITE).apply { alpha = 0xAA }
+            drawCentered(canvas, ellipsize(paint, translation, maxWidth), width / 2f, centerY + fontSize * 0.82f, paint)
         }
         drawProgressBar(canvas, width, height, progress, accent, density)
     }
